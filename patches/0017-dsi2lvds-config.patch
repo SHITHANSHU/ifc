@@ -1,1 +1,21 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0017-dsi2lvds-config.patch
+From 307e3e4c9d8ab298958427eb31398053302b336b Mon Sep 17 00:00:00 2001
+From: Laxman <laxman@inforcecomputing.com>
+Date: Thu, 22 Dec 2016 19:37:08 +0530
+Subject: [PATCH 17/17] dsi2lvds-config
+
+---
+ arch/arm64/configs/defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
+index 2fdcdbc..3d5b731 100644
+--- a/arch/arm64/configs/defconfig
++++ b/arch/arm64/configs/defconfig
+@@ -323,3 +323,4 @@ CONFIG_CRYPTO_CRC32_ARM64=y
+ # CONFIG_RTC_HCTOSYS is not set
+ # CONFIG_RTC_SYSTOHC is not set
+ # CONFIG_RTC_DEBUG is not set
++CONFIG_MSM_MIPI_DSI_TC358775_DSI2LVDS=y
+-- 
+1.9.1
+

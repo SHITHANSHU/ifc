@@ -1,1 +1,27 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0006-ARM-dts-msm8916-local-mac-address.patch
+From b0a05bbbcc455296a056239d08d36cf2b99e3cfe Mon Sep 17 00:00:00 2001
+From: Vinay Simha BN <vinaysimha@inforcecomputing.com>
+Date: Mon, 25 Jul 2016 16:01:45 +0530
+Subject: [PATCH 06/17] ARM: dts: msm8916 - local-mac-address
+
+added local-mac-address for wifi
+
+Signed-off-by: Vinay Simha BN <vinaysimha@inforcecomputing.com>
+---
+ arch/arm64/boot/dts/qcom/msm8916.dtsi | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/msm8916.dtsi b/arch/arm64/boot/dts/qcom/msm8916.dtsi
+index 551c12a..b502949 100644
+--- a/arch/arm64/boot/dts/qcom/msm8916.dtsi
++++ b/arch/arm64/boot/dts/qcom/msm8916.dtsi
+@@ -1132,6 +1132,7 @@
+ 
+ 					qcom,state = <&apps_smsm 10>, <&apps_smsm 9>;
+ 					qcom,state-names = "tx-enable", "tx-rings-empty";
++					local-mac-address = [ 58 fc db 40 3e 25 ];
+ 				};
+ 			};
+ 		};
+-- 
+1.9.1
+

@@ -1,1 +1,25 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0016-defconfig-ov5640.patch
+From 02b9046254487a1d7d7984cf14367fb7de4eeb15 Mon Sep 17 00:00:00 2001
+From: M Vali <vali@inforcecomputing.com>
+Date: Fri, 16 Dec 2016 11:36:56 +0530
+Subject: [PATCH 16/17] defconfig:ov5640
+
+---
+ arch/arm64/configs/defconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
+index e417058..2fdcdbc 100644
+--- a/arch/arm64/configs/defconfig
++++ b/arch/arm64/configs/defconfig
+@@ -182,7 +182,7 @@ CONFIG_MSM_CAMSS_V4L2=y
+ CONFIG_MSM_CCI=y
+ CONFIG_MSM_VIDC_V4L2=y
+ # CONFIG_MEDIA_SUBDRV_AUTOSELECT is not set
+-CONFIG_VIDEO_OV5645=y
++CONFIG_VIDEO_OV5640=y
+ CONFIG_DRM=y
+ CONFIG_DRM_I2C_ADV7511=y
+ CONFIG_FB_ARMCLCD=y
+-- 
+1.9.1
+

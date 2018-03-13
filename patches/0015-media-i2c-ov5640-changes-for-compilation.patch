@@ -1,1 +1,38 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0015-media-i2c-ov5640-changes-for-compilation.patch
+From 2881e10369f8acdbb5438ffaf54aaf66a8f37938 Mon Sep 17 00:00:00 2001
+From: M Vali <vali@inforcecomputing.com>
+Date: Fri, 16 Dec 2016 11:35:12 +0530
+Subject: [PATCH 15/17] media/i2c: ov5640 changes for compilation
+
+---
+ drivers/media/i2c/ov5640.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/i2c/ov5640.c b/drivers/media/i2c/ov5640.c
+index 3537d8c..f5a517d 100644
+--- a/drivers/media/i2c/ov5640.c
++++ b/drivers/media/i2c/ov5640.c
+@@ -984,8 +984,9 @@ static void ov5640_regulators_disable(struct ov5640 *ov5640)
+ static int ov5640_write_reg(struct ov5640 *ov5640, u16 reg, u8 val)
+ {
+ 	int ret;
++	u16 i2c_addr = ov5640->i2c_client->addr;
+ 
+-	ret = msm_cci_ctrl_write(reg, &val, 1);
++	ret = msm_cci_ctrl_write(i2c_addr, reg, &val, 1);
+ 	if (ret < 0)
+ 		dev_err(ov5640->dev, "%s: write reg error %d: reg=%x, val=%x\n",
+ 			__func__, ret, reg, val);
+@@ -997,8 +998,9 @@ static int ov5640_read_reg(struct ov5640 *ov5640, u16 reg, u8 *val)
+ {
+ 	u8 tmpval;
+ 	int ret;
++    u16 i2c_addr = ov5640->i2c_client->addr;
+ 
+-	ret = msm_cci_ctrl_read(reg, &tmpval, 1);
++	ret = msm_cci_ctrl_read(i2c_addr, reg, &tmpval, 1);
+ 	if (ret < 0) {
+ 		dev_err(ov5640->dev, "%s: read reg error %d: reg=%x\n",
+ 			__func__, ret, reg);
+-- 
+1.9.1
+

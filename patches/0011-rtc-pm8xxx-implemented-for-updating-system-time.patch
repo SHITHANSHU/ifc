@@ -1,1 +1,229 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0011-rtc-pm8xxx-implemented-for-updating-system-time.patch
+From 20cb0a3375b554607b6ea6b2052fac35688093c2 Mon Sep 17 00:00:00 2001
+From: Pradeep M <pradeep@inforcecomputing.com>
+Date: Thu, 24 Nov 2016 15:32:37 +0530
+Subject: [PATCH 11/17] rtc:pm8xxx: implemented for updating system time
+
+Signed-off-by: Pradeep M <pradeep@inforcecomputing.com>
+---
+ arch/arm64/boot/dts/qcom/pm8916.dtsi |   1 +
+ arch/arm64/configs/defconfig         |   3 +
+ drivers/rtc/rtc-pm8xxx.c             | 123 +++++++++++++++++++++--------------
+ 3 files changed, 77 insertions(+), 50 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/pm8916.dtsi b/arch/arm64/boot/dts/qcom/pm8916.dtsi
+index 48d2068..53fc6db 100644
+--- a/arch/arm64/boot/dts/qcom/pm8916.dtsi
++++ b/arch/arm64/boot/dts/qcom/pm8916.dtsi
+@@ -15,6 +15,7 @@
+ 			compatible = "qcom,pm8941-rtc";
+ 			reg = <0x6000 0x6100>;
+ 			reg-names = "rtc", "alarm";
++			allow-set-time;
+ 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
+ 		};
+ 
+diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
+index 74f2a5a..e417058 100644
+--- a/arch/arm64/configs/defconfig
++++ b/arch/arm64/configs/defconfig
+@@ -320,3 +320,6 @@ CONFIG_CRYPTO_AES_ARM64_CE_CCM=y
+ CONFIG_CRYPTO_AES_ARM64_CE_BLK=y
+ CONFIG_CRYPTO_AES_ARM64_NEON_BLK=y
+ CONFIG_CRYPTO_CRC32_ARM64=y
++# CONFIG_RTC_HCTOSYS is not set
++# CONFIG_RTC_SYSTOHC is not set
++# CONFIG_RTC_DEBUG is not set
+diff --git a/drivers/rtc/rtc-pm8xxx.c b/drivers/rtc/rtc-pm8xxx.c
+index 795fcbd..2eb4546 100644
+--- a/drivers/rtc/rtc-pm8xxx.c
++++ b/drivers/rtc/rtc-pm8xxx.c
+@@ -18,6 +18,8 @@
+ #include <linux/regmap.h>
+ #include <linux/slab.h>
+ #include <linux/spinlock.h>
++#include <linux/file.h>
++#include <linux/syscalls.h>
+ 
+ /* RTC Register offsets from RTC CTRL REG */
+ #define PM8XXX_ALARM_CTRL_OFFSET	0x01
+@@ -71,6 +73,42 @@ struct pm8xxx_rtc {
+ 	spinlock_t ctrl_reg_lock;
+ };
+ 
++static int read_offset_file(char *filename,unsigned long *buf)
++{
++	int fd;
++	unsigned int h=0;
++	mm_segment_t old_fs = get_fs();
++	set_fs(KERNEL_DS);
++	fd = sys_open(filename, O_RDWR|O_CREAT, 0);
++	h=  sys_read(fd, (char *)buf, sizeof(unsigned long));
++	sys_close(fd);
++	set_fs(old_fs);
++	return h;
++}
++
++
++static void write_offset_file(char *filename, unsigned long *data)
++{
++    struct file *file;
++    loff_t pos = 0;
++    int fd;
++
++    mm_segment_t old_fs = get_fs();
++    set_fs(KERNEL_DS);
++
++    fd = sys_open(filename, O_RDWR|O_CREAT, 0777);
++
++    if (fd >= 0) {
++        sys_write(fd, (const char *)data, sizeof(unsigned long));
++        file = fget(fd);
++        if (file) {
++            vfs_write(file, (const char *)data, sizeof(unsigned long), &pos);
++            fput(file);
++        }
++        sys_close(fd);
++    }
++    set_fs(old_fs);
++}
+ /*
+  * Steps to write the RTC registers.
+  * 1. Disable alarm if enabled.
+@@ -80,10 +118,11 @@ struct pm8xxx_rtc {
+  */
+ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
+ {
+-	int rc, i;
+-	unsigned long secs, irq_flags;
+-	u8 value[NUM_8_BIT_RTC_REGS], alarm_enabled = 0;
+-	unsigned int ctrl_reg;
++	int rc;
++	unsigned long secs;
++	u8 value[NUM_8_BIT_RTC_REGS];
++	unsigned long rtc_secs, offset_secs;
++    unsigned int reg;
+ 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
+ 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
+ 
+@@ -92,74 +131,54 @@ static int pm8xxx_rtc_set_time(struct device *dev, struct rtc_time *tm)
+ 
+ 	rtc_tm_to_time(tm, &secs);
+ 
+-	for (i = 0; i < NUM_8_BIT_RTC_REGS; i++) {
+-		value[i] = secs & 0xFF;
+-		secs >>= 8;
++	rc = regmap_bulk_read(rtc_dd->regmap, regs->read, value, sizeof(value));
++	if (rc) {
++		dev_err(dev, "RTC read data register failed\n");
++		return rc;
+ 	}
+ 
+-	dev_dbg(dev, "Seconds value to be written to RTC = %lu\n", secs);
+-
+-	spin_lock_irqsave(&rtc_dd->ctrl_reg_lock, irq_flags);
+-
+-	rc = regmap_read(rtc_dd->regmap, regs->ctrl, &ctrl_reg);
+-	if (rc)
+-		goto rtc_rw_fail;
++	/*
++	 * Read the LSB again and check if there has been a carry over.
++	 * If there is, redo the read operation.
++	 */
++	rc = regmap_read(rtc_dd->regmap, regs->read, &reg);
++	if (rc < 0) {
++		dev_err(dev, "RTC read data register failed\n");
++		return rc;
++	}
+ 
+-	if (ctrl_reg & regs->alarm_en) {
+-		alarm_enabled = 1;
+-		ctrl_reg &= ~regs->alarm_en;
+-		rc = regmap_write(rtc_dd->regmap, regs->ctrl, ctrl_reg);
++	if (unlikely(reg < value[0])) {
++		rc = regmap_bulk_read(rtc_dd->regmap, regs->read,
++				      value, sizeof(value));
+ 		if (rc) {
+-			dev_err(dev, "Write to RTC control register failed\n");
+-			goto rtc_rw_fail;
++			dev_err(dev, "RTC read data register failed\n");
++			return rc;
+ 		}
+ 	}
+ 
+-	/* Write 0 to Byte[0] */
+-	rc = regmap_write(rtc_dd->regmap, regs->write, 0);
+-	if (rc) {
+-		dev_err(dev, "Write to RTC write data register failed\n");
+-		goto rtc_rw_fail;
+-	}
++	rtc_secs = value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24);
+ 
+-	/* Write Byte[1], Byte[2], Byte[3] */
+-	rc = regmap_bulk_write(rtc_dd->regmap, regs->write + 1,
+-			       &value[1], sizeof(value) - 1);
+-	if (rc) {
+-		dev_err(dev, "Write to RTC write data register failed\n");
+-		goto rtc_rw_fail;
+-	}
+-
+-	/* Write Byte[0] */
+-	rc = regmap_write(rtc_dd->regmap, regs->write, value[0]);
+-	if (rc) {
+-		dev_err(dev, "Write to RTC write data register failed\n");
+-		goto rtc_rw_fail;
+-	}
++	offset_secs = secs - rtc_secs;
+ 
+-	if (alarm_enabled) {
+-		ctrl_reg |= regs->alarm_en;
+-		rc = regmap_write(rtc_dd->regmap, regs->ctrl, ctrl_reg);
+-		if (rc) {
+-			dev_err(dev, "Write to RTC control register failed\n");
+-			goto rtc_rw_fail;
+-		}
+-	}
++	write_offset_file("/etc/rtc_offset", &offset_secs);
+ 
+-rtc_rw_fail:
+-	spin_unlock_irqrestore(&rtc_dd->ctrl_reg_lock, irq_flags);
++	dev_dbg(dev, ">>>>>>>>>>>>>> secs = %lu\n", offset_secs);
+ 
+ 	return rc;
+ }
+ 
+ static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
+ {
++	struct timespec64 tv64 = {
++        .tv_nsec = NSEC_PER_SEC >> 1,
++	};
+ 	int rc;
+ 	u8 value[NUM_8_BIT_RTC_REGS];
+ 	unsigned long secs;
+ 	unsigned int reg;
+ 	struct pm8xxx_rtc *rtc_dd = dev_get_drvdata(dev);
+ 	const struct pm8xxx_rtc_regs *regs = rtc_dd->regs;
++	unsigned long offset_secs;
+ 
+ 	rc = regmap_bulk_read(rtc_dd->regmap, regs->read, value, sizeof(value));
+ 	if (rc) {
+@@ -187,6 +206,8 @@ static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
+ 	}
+ 
+ 	secs = value[0] | (value[1] << 8) | (value[2] << 16) | (value[3] << 24);
++	read_offset_file("/etc/rtc_offset", &offset_secs);
++	secs+=offset_secs;
+ 
+ 	rtc_time_to_tm(secs, tm);
+ 
+@@ -195,6 +216,8 @@ static int pm8xxx_rtc_read_time(struct device *dev, struct rtc_time *tm)
+ 		dev_err(dev, "Invalid time read from RTC\n");
+ 		return rc;
+ 	}
++    tv64.tv_sec = rtc_tm_to_time64(tm);
++    do_settimeofday64(&tv64);
+ 
+ 	dev_dbg(dev, "secs = %lu, h:m:s == %d:%d:%d, d/m/y = %d/%d/%d\n",
+ 		secs, tm->tm_hour, tm->tm_min, tm->tm_sec,
+-- 
+1.9.1
+

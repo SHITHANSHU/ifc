@@ -1,1 +1,98 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0003-Revert-dts-Remove-camera-sensors-from-dtsi.patch
+From 9064cc4f7be2459a5263105270f46bb4e90a1f52 Mon Sep 17 00:00:00 2001
+From: M Vali <vali@inforcecomputing.com>
+Date: Fri, 16 Dec 2016 10:59:14 +0530
+Subject: [PATCH 03/17] Revert "dts: Remove camera sensors from dtsi"
+
+This reverts commit 792284faeb6a77faca40cb4194da5b69728b0056.
+---
+ arch/arm64/boot/dts/qcom/apq8016-sbc.dtsi | 64 +++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/apq8016-sbc.dtsi b/arch/arm64/boot/dts/qcom/apq8016-sbc.dtsi
+index 968d4f0..b9d2caf 100644
+--- a/arch/arm64/boot/dts/qcom/apq8016-sbc.dtsi
++++ b/arch/arm64/boot/dts/qcom/apq8016-sbc.dtsi
+@@ -323,9 +323,21 @@
+ 		#size-cells = <0>;
+ 		port@0 {
+ 			reg = <0>;
++			csiphy0_ep: endpoint {
++				clock-lanes = <1>;
++				data-lanes = <0 2>;
++				qcom,settle-cnt = <0xe>;
++				remote-endpoint = <&ov5645_ep>;
++			};
+ 		};
+ 		port@1 {
+ 			reg = <1>;
++			csiphy1_ep: endpoint {
++				clock-lanes = <1>;
++				data-lanes = <0 2>;
++				qcom,settle-cnt = <0xe>;
++				remote-endpoint = <&ov5645_2_ep>;
++			};
+ 		};
+ 	};
+ };
+@@ -425,6 +437,58 @@
+ 
+ &blsp_i2c6 {
+ 	status = "ok";
++
++	camera_rear@76 {
++		compatible = "ovti,ov5645";
++		reg = <0x76>;
++
++		enable-gpios = <&msmgpio 34 0>;
++		reset-gpios = <&msmgpio 35 1>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&camera_rear_default>;
++
++		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
++		clock-names = "xclk";
++		clock-frequency = <23880000>;
++
++		vdddo-supply = <&camera_vdddo_1v8>;
++		vdda-supply = <&camera_vdda_2v8>;
++		vddd-supply = <&camera_vddd_1v5>;
++
++		port {
++			ov5645_ep: endpoint {
++				clock-lanes = <1>;
++				data-lanes = <0 2>;
++				remote-endpoint = <&csiphy0_ep>;
++			};
++		};
++	};
++
++	camera_front@74 {
++		compatible = "ovti,ov5645";
++		reg = <0x74>;
++
++		enable-gpios = <&msmgpio 33 0>;
++		reset-gpios = <&msmgpio 28 1>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&camera_front_default>;
++
++		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
++		clock-names = "xclk";
++		clock-frequency = <23880000>;
++
++		vdddo-supply = <&camera_vdddo_1v8>;
++		vdda-supply = <&camera_vdda_2v8>;
++		vddd-supply = <&camera_vddd_1v5>;
++
++		port {
++			ov5645_2_ep: endpoint {
++				clock-lanes = <1>;
++				data-lanes = <0 2>;
++				remote-endpoint = <&csiphy1_ep>;
++			};
++		};
++	};
+ };
+ 
+ &mdss_dsi0 {
+-- 
+1.9.1
+

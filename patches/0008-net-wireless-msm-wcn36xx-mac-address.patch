@@ -1,1 +1,111 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0008-net-wireless-msm-wcn36xx-mac-address.patch
+From ccf40e3cd07d52aacf5786df735866be9da74fd6 Mon Sep 17 00:00:00 2001
+From: Vinay Simha BN <vinaysimha@inforcecomputing.com>
+Date: Tue, 18 Oct 2016 18:35:58 +0530
+Subject: [PATCH 08/17] net/wireless: msm wcn36xx mac address
+
+reading and storing mac address changed
+from dtsi to /lib/firmware/wlan/macaddr0
+
+Signed-off-by: Vinay Simha BN <vinaysimha@inforcecomputing.com>
+---
+ drivers/net/wireless/ath/wcn36xx/main.c    | 45 +++++++++++++++++++++++++++++-
+ drivers/net/wireless/ath/wcn36xx/wcn36xx.h |  2 ++
+ 2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/ath/wcn36xx/main.c b/drivers/net/wireless/ath/wcn36xx/main.c
+index 2d9402e..265a701 100644
+--- a/drivers/net/wireless/ath/wcn36xx/main.c
++++ b/drivers/net/wireless/ath/wcn36xx/main.c
+@@ -1167,13 +1167,49 @@ put_mmio_node:
+ 	return ret;
+ }
+ 
++static int wcn36xx_msm_get_hw_mac(struct wcn36xx *wcn, u8 *addr)
++{
++        const struct firmware *addr_file = NULL;
++        int status;
++        u8 tmp[18];
++        static const char *files = {WLAN_MAC_ADDR_0};
++
++        status = request_firmware(&addr_file, files, wcn->dev);
++
++	if(status) {
++		wcn36xx_err("Failed to load nv file %s: %d\n",
++                                      WLAN_MAC_ADDR_0, status);
++                        goto out;
++	}
++        else {
++                memset(tmp, 0, sizeof(tmp));
++                memcpy(tmp, addr_file->data, sizeof(tmp) - 1);
++                sscanf(tmp, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
++                       &addr[0],
++                       &addr[1],
++                       &addr[2],
++                       &addr[3],
++                       &addr[4],
++                       &addr[5]);
++
++                release_firmware(addr_file);
++        }
++
++        return 0;
++out:
++	return status;
++}
++
+ static int wcn36xx_probe(struct platform_device *pdev)
+ {
+ 	struct ieee80211_hw *hw;
+ 	struct wcn36xx *wcn;
+ 	void *wcnss;
+ 	int ret;
++	u8 addr[ETH_ALEN];
++/*
+ 	const u8 *addr;
++*/
+ 
+ 	wcn36xx_dbg(WCN36XX_DBG_MAC, "platform probe\n");
+ 
+@@ -1201,14 +1237,20 @@ static int wcn36xx_probe(struct platform_device *pdev)
+ 		goto out_wq;
+ 	}
+ 
++/* setting the mac address from wlan/macaddr0 */
+ 	qcom_smd_set_drvdata(wcn->smd_channel, hw);
+ 
++/*
+ 	addr = of_get_property(pdev->dev.of_node, "local-mac-address", &ret);
++
+ 	if (addr && ret != ETH_ALEN) {
++*/
++	if(wcn36xx_msm_get_hw_mac(wcn, addr)) {
+ 		wcn36xx_err("invalid local-mac-address\n");
+ 		ret = -EINVAL;
+ 		goto out_wq;
+-	} else if (addr) {
++	} else {
++/*	} else if (addr) { */
+ 		wcn36xx_info("mac address: %pM\n", addr);
+ 		SET_IEEE80211_PERM_ADDR(wcn->hw, addr);
+ 	}
+@@ -1274,3 +1316,4 @@ module_platform_driver(wcn36xx_driver);
+ MODULE_LICENSE("Dual BSD/GPL");
+ MODULE_AUTHOR("Eugene Krasnikov k.eugene.e@gmail.com");
+ MODULE_FIRMWARE(WLAN_NV_FILE);
++MODULE_FIRMWARE(WLAN_MAC_ADDR_0);
+diff --git a/drivers/net/wireless/ath/wcn36xx/wcn36xx.h b/drivers/net/wireless/ath/wcn36xx/wcn36xx.h
+index 35a6590..e5e7e40 100644
+--- a/drivers/net/wireless/ath/wcn36xx/wcn36xx.h
++++ b/drivers/net/wireless/ath/wcn36xx/wcn36xx.h
+@@ -30,6 +30,8 @@
+ #include "debug.h"
+ 
+ #define WLAN_NV_FILE               "wlan/prima/WCNSS_qcom_wlan_nv.bin"
++#define WLAN_MAC_ADDR_0		   "wlan/macaddr0"
++
+ #define WCN36XX_AGGR_BUFFER_SIZE 64
+ 
+ /* How many frames until we start a-mpdu TX session */
+-- 
+1.9.1
+

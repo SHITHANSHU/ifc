@@ -1,1 +1,26 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0014-i2c-ov5640-Reg-setting-for-VYUY-color-format.patch
+From 8c13d320b14343c81014ad9fb06d39544a0bc463 Mon Sep 17 00:00:00 2001
+From: Pradeep M <pradeep@inforcecomputing.com>
+Date: Thu, 15 Dec 2016 12:06:21 +0530
+Subject: [PATCH 14/17] i2c:ov5640: Reg setting for VYUY color format
+
+Signed-off-by: Pradeep M <pradeep@inforcecomputing.com>
+---
+ drivers/media/i2c/ov5640.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/ov5640.c b/drivers/media/i2c/ov5640.c
+index 60edfb7..3537d8c 100644
+--- a/drivers/media/i2c/ov5640.c
++++ b/drivers/media/i2c/ov5640.c
+@@ -497,7 +497,7 @@ static struct reg_value ov5640_setting_1080p[] = {
+         {0x3006, 0xc3},
+         {0x300e, 0x45},
+         {0x302e, 0x08},
+-        {0x4300, 0x32},
++        {0x4300, 0x33},
+         {0x501f, 0x00},
+         {0x4713, 0x02},
+         {0x4407, 0x04},
+-- 
+1.9.1
+

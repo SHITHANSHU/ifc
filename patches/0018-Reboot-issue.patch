@@ -1,1 +1,32 @@
-/home/yogesh/Workspace/IFC6309_patched_yocto/build-rpb/conf/../../layers/meta-qcom/recipes-kernel/linux/linux-linaro-qcomlt/0018-Reboot-issue.patch
+From 38adaac246bfc1d35699a9d80f5f6e286419fc54 Mon Sep 17 00:00:00 2001
+From: Laxman <laxman@inforcecomputing.com>
+Date: Wed, 28 Dec 2016 16:42:57 +0530
+Subject: [PATCH] Reboot issue
+
+---
+ arch/arm64/kernel/process.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
+index f75b540..04c19cf 100644
+--- a/arch/arm64/kernel/process.c
++++ b/arch/arm64/kernel/process.c
+@@ -152,10 +152,14 @@ void machine_restart(char *cmd)
+ 		efi_reboot(reboot_mode, NULL);
+ 
+ 	/* Now call the architecture specific reboot code. */
+-	if (arm_pm_restart)
++#if 0
++    if (arm_pm_restart)
+ 		arm_pm_restart(reboot_mode, cmd);
+ 	else
+ 		do_kernel_restart(cmd);
++#else
++		do_kernel_restart(cmd);
++#endif
+ 
+ 	/*
+ 	 * Whoops - the architecture was unable to reboot.
+-- 
+1.9.1
+
